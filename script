@@ -1,0 +1,139 @@
+#!/bin/bash
+
+# Perform system update and upgrade
+echo "Updating package list and upgrading installed packages..."
+sudo apt update -y && sudo apt upgrade -y
+
+# Update the mlocate database for faster file searching
+echo "Updating the file search database..."
+sudo updatedb
+
+# Optionally, clean up old package files to save space
+echo "Cleaning up unnecessary package files..."
+sudo apt autoremove -y && sudo apt clean
+
+# Get the current working directory
+current_dir=$(pwd)
+
+# Define the directories for scanning and enumeration
+scanning_dir="$current_dir/tools/enumeration/scanning"
+potato_dir="$current_dir/tools/privesc/windows/potato"
+linuxenum_dir="$current_dir/tools/enumeration/linux"
+windowsenum_dir="$current_dir/tools/enumeration/windows"
+pivot_dir="$current_dir/tools/pivot"
+
+# URLs for Enumeration Tools
+scanning_urls=(
+    "https://github.com/RustScan/RustScan/releases/download/2.3.0/rustscan_2.3.0_amd64.deb"
+)
+
+linuxenum_urls=(
+    "https://github.com/peass-ng/PEASS-ng/releases/download/20250216-fd69e735/linpeas_linux_amd64"
+)
+
+windowsenum_urls=(
+    "https://github.com/peass-ng/PEASS-ng/releases/download/20250216-fd69e735/winPEASany.exe"
+    "https://github.com/PowerShellMafia/PowerSploit/blob/master/Privesc/Get-System.ps1"
+    "https://github.com/PowerShellMafia/PowerSploit/blob/master/Privesc/PowerUp.ps1"
+    "https://github.com/PowerShellMafia/PowerSploit/blob/master/Recon/PowerView.ps1"
+    "https://github.com/antonioCoco/RunasCs/blob/master/Invoke-RunasCs.ps1"
+    "https://github.com/ParrotSec/mimikatz/blob/master/x64/mimikatz.exe"
+    "https://github.com/ropnop/kerbrute/releases/download/v1.0.3/kerbrute_linux_amd64"
+    "https://github.com/ropnop/kerbrute/releases/download/v1.0.3/kerbrute_windows_amd64.exe"
+    "https://github.com/itm4n/PrivescCheck/blob/master/PrivescCheck.ps1"
+    "https://github.com/AonCyberLabs/Windows-Exploit-Suggester/blob/master/windows-exploit-suggester.py"
+)
+
+# URLs for Privesc Tools
+potato_urls=(
+    "https://github.com/BeichenDream/GodPotato/releases/download/V1.20/GodPotato-NET2.exe"
+    "https://github.com/BeichenDream/GodPotato/releases/download/V1.20/GodPotato-NET35.exe"
+    "https://github.com/BeichenDream/GodPotato/releases/download/V1.20/GodPotato-NET4.exe"
+)
+
+pivot_urls=(
+    "https://github.com/nicocha30/ligolo-ng/releases/download/v0.7.5/ligolo-ng_agent_0.7.5_linux_amd64.tar.gz"
+    "https://github.com/nicocha30/ligolo-ng/releases/download/v0.7.5/ligolo-ng_proxy_0.7.5_linux_amd64.tar.gz"
+    "https://github.com/nicocha30/ligolo-ng/releases/download/v0.7.5/ligolo-ng_agent_0.7.5_windows_amd64.zip"
+    "https://github.com/nicocha30/ligolo-ng/releases/download/v0.7.5/ligolo-ng_proxy_0.7.5_windows_amd64.zip"
+)
+
+# List of software to install using apt
+software_to_install=(
+    "dirsearch"
+    "gobuster"
+)
+
+# Create directories if they don't exist
+mkdir -p "$scanning_dir"
+mkdir -p "$linuxenum_dir"
+mkdir -p "$potato_dir"
+mkdir -p "$windowsenum_dir"
+mkdir -p "$pivot_dir"
+
+# Download scanning tools to the 'scanning' folder concurrently
+for url in "${scanning_urls[@]}"; do
+    wget -P "$scanning_dir" "$url" &
+done
+
+# Download Linuxenum tools to the 'linux' folder concurrently
+for url in "${linuxenum_urls[@]}"; do
+    wget -P "$linuxenum_dir" "$url" &
+done
+
+# Download Windowsenum tools to the 'windowsenum' folder concurrently
+for url in "${windowsenum_urls[@]}"; do
+    wget -P "$windowsenum_dir" "$url" &
+done
+
+# Download Potato tools to the 'potato' folder concurrently
+for url in "${potato_urls[@]}"; do
+    wget -P "$potato_dir" "$url" &
+done
+
+# Download Pivot tools to the 'pivot' folder concurrently
+for url in "${pivot_urls[@]}"; do
+    wget -P "$pivot_dir" "$url" &
+done
+
+# Install software using apt concurrently
+for software in "${software_to_install[@]}"; do
+    sudo apt install -y "$software" &
+done
+
+# Wait for all background processes (downloads and installations) to finish
+wait
+
+# Extract files (for zip and tar.gz files) in the /tools/pivot directory
+echo "Extracting .zip and .tar.gz files in the pivot directory..."
+for file in "$pivot_dir"/*; do
+    if [[ "$file" == *.zip ]]; then
+        unzip -o "$file" -d "$pivot_dir"
+        echo "Unzipped $file"
+        # Remove the zip file after extraction
+        rm -f "$file"
+        echo "Removed $file"
+        
+        # Remove LICENSE and README.md files if they exist
+        rm -f "$pivot_dir/LICENSE" "$pivot_dir/README.md"
+        echo "Removed LICENSE and README.md files"
+
+    elif [[ "$file" == *.tar.gz ]]; then
+        tar -xvzf "$file" -C "$pivot_dir"
+        echo "Extracted $file"
+        # Remove the tar.gz file after extraction
+        rm -f "$file"
+        echo "Removed $file"
+        
+        # Remove LICENSE and README.md files if they exist
+        rm -f "$pivot_dir/LICENSE" "$pivot_dir/README.md"
+        echo "Removed LICENSE and README.md files"
+    fi
+done
+
+# Install RustScan from the .deb file in the scanning directory
+echo "Installing RustScan from .deb file..."
+sudo dpkg -i "$scanning_dir/rustscan_2.3.0_amd64.deb"
+sudo apt-get install -f -y  # This will fix any dependencies that may be missing
+
+echo "All files downloaded, extracted, cleaned up, and software installed successfully."
