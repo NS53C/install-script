@@ -62,6 +62,10 @@ pivot_urls=(
 software_to_install=( 
     "dirsearch"
     "gobuster"
+    "konsole"
+    "rlwrap"
+    "feroxbuster"
+    "flameshot"
 )
 
 # Create directories if they don't exist
